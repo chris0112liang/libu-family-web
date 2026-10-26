@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="theme-color" content="#971c30">
+  <link rel="icon" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>礼簿助手 · 家庭查询</title>
+  <style>
+    :root{color-scheme:light;--red:#971c30;--ink:#32251f;--muted:#88766a;--gold:#b08b51}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:28px 20px;background:radial-gradient(ellipse at 50% 0,#efe0c8 0,transparent 65%),#f5f0e7;color:var(--ink);font:16px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}main{width:min(100%,430px)}.card{background:#fffdf8;border:1px solid #e2d1b4;border-top:4px solid var(--red);border-radius:18px;padding:34px 28px;box-shadow:0 20px 65px #674b2214}.seal{width:53px;height:57px;display:grid;place-items:center;color:#fff4dd;background:var(--red);font:30px/1 serif;border-radius:8px;box-shadow:inset 0 0 0 5px var(--red),inset 0 0 0 6px #d6b579;margin:0 auto 23px}.eyebrow{text-align:center;color:var(--gold);font-size:12px;letter-spacing:5px}h1{text-align:center;font-size:28px;line-height:1.4;margin:10px 0;font-weight:600}.intro{text-align:center;font-size:14px;color:var(--muted);margin:0 0 28px}label{display:block;font-size:14px;font-weight:600;margin-bottom:8px}.field{position:relative}input{font:inherit;border:1px solid #dac8b0;background:#fbf7ef;border-radius:9px;height:54px;width:100%;padding:0 66px 0 13px;color:var(--ink);font-size:16px}button{font:inherit;cursor:pointer}input:focus,button:focus-visible{outline:3px solid #c09c55;outline-offset:3px}.reveal{position:absolute;right:6px;top:6px;height:42px;background:transparent;border:0;color:#8b6f4e;font-size:13px;padding:0 10px}.submit{width:100%;background:var(--red);border:0;border-radius:9px;color:#fff8eb;font-weight:600;letter-spacing:2px;padding:13px 10px;margin-top:17px}.submit:disabled{opacity:.65;cursor:wait}.message{min-height:25px;color:var(--red);font-size:13px;margin:12px 0 0}.hint{font-size:12px;color:var(--muted);margin:12px 0 0;text-align:center}.footer{text-align:center;font-size:12px;color:#99836c;margin:20px 0 0}@media(max-width:360px){.card{padding:28px 21px}h1{font-size:25px}}
+  </style>
+</head>
+<body>
+<main>
+  <section class="card" aria-labelledby="title">
+    <div class="seal" aria-hidden="true">礼</div>
+    <div class="eyebrow">嘉 宾 礼 簿</div>
+    <h1 id="title">礼簿助手</h1>
+    <p class="intro">输入家人给你的访问密码，<br>查找礼金，查看原始记录。</p>
+    <form id="unlock-form">
+      <label for="access-password">访问密码</label>
+      <div class="field"><input id="access-password" type="password" required maxlength="128" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="请输入访问密码"><button class="reveal" type="button" id="reveal" aria-pressed="false">显示</button></div>
+      <button type="submit" class="submit" id="unlock-button">打开礼簿</button>
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+    </form>
+    <p class="hint">请向家人获取密码。重新打开时需要再次输入。</p>
+  </section>
+  <div class="footer">家庭查询 · 网页试用版</div>
+</main>
+<script>
+(() => {
+  'use strict';
+  const input=document.getElementById('access-password');
+  const button=document.getElementById('unlock-button');
+  const message=document.getElementById('message');
+  let vaultPromise=null;
+  document.getElementById('reveal').addEventListener('click',e=>{const show=input.type==='password';input.type=show?'text':'password';e.currentTarget.textContent=show?'隐藏':'显示';e.currentTarget.setAttribute('aria-pressed',String(show));});
+  document.getElementById('unlock-form').addEventListener('submit',async event=>{
+    event.preventDefault();
+    let password=input.value.trim();
+    if(!password){message.textContent='请输入访问密码。';input.focus();return;}
+    if(!globalThis.crypto?.subtle){message.textContent='请用浏览器打开完整的 HTTPS 网页链接。';return;}
+    button.disabled=true;input.readOnly=true;button.textContent='正在打开…';message.textContent='首次打开正在载入礼簿，请稍候。';
+    try{
+      if(!vaultPromise)vaultPromise=fetch('vault.bin?v=934971cae82893ca',{cache:'no-store',credentials:'same-origin'}).then(r=>{if(!r.ok)throw new Error('download');return r.arrayBuffer();}).catch(e=>{vaultPromise=null;throw e;});
+      const bytes=new Uint8Array(await vaultPromise);
+      if(bytes.length<52||new TextDecoder().decode(bytes.slice(0,8))!=='LIBUWEB1')throw new Error('vault');
+      const material=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);
+      const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:bytes.slice(8,24),iterations:310000,hash:'SHA-256'},material,{name:'AES-GCM',length:256},false,['decrypt']);
+      const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(24,36)},key,bytes.slice(36));
+      const html=new TextDecoder('utf-8',{fatal:true}).decode(plain);
+      if(!html.startsWith('<!doctype html>'))throw new Error('vault');
+      input.value='';password='';
+      document.open();document.write(html);document.close();
+    }catch(error){
+      message.textContent=error.name==='OperationError'?'密码不正确，请核对后重新输入。':'暂时无法打开礼簿，请检查网络后重试。';
+      button.disabled=false;input.readOnly=false;button.textContent='打开礼簿';input.focus();
+    }finally{password='';}
+  });
+})();
+</script>
+</body>
+</html>

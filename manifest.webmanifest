@@ -1,0 +1,16 @@
+{
+  "name": "礼簿助手 · 家庭查询",
+  "short_name": "礼簿助手",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f0e7",
+  "theme_color": "#971c30",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
